@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "myproject"
 authors = [
-    { name = "Your Name", email = "Your.Email@somewhere.edu.au"},
+    { name = "Tsz Ching Li", email = "u7630977@anu.edu.au"},
 ]
 keywords = ["biology", "genomics", "statistics", "phylogeny", "evolution", "bioinformatics"]
 readme = "README.md"

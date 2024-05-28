@@ -3,31 +3,44 @@ from pathlib import Path
 import pytest
 
 from click.testing import CliRunner
+from cogent3.core.alignment import SequenceCollection
 
-from myproject.cli import demo_echo, demo_log
+from myproject.cli import main, unique_kmers, unique_kmers_for_cli
 
 
 DATADIR = Path(__file__).parent / "data"
 
 
 @pytest.fixture(scope="session")
-def tmp_dir(tmpdir_factory):
-    return tmpdir_factory.mktemp("demo")
-
-
-@pytest.fixture(scope="session")
 def runner():
-    """exportrc works correctly."""
     return CliRunner()
 
 
-def test_demo_echo(tmp_dir, runner):
-    args = "'hello!' -vv".split()
-    r = runner.invoke(demo_echo, args, catch_exceptions=False)
-    assert r.exit_code == 0, r.output
+def test_unique_kmers_for_cli(runner):
+    seqs_input = '{"s1": "AT", "s2": "AC", "s3": "AA"}'
+    kmer_size = 2
+    args = ["unique_kmers_for_cli", "-s", seqs_input, "-k", str(kmer_size)]
+
+    result = runner.invoke(main, args, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+
+    expected_output = (
+        "Unique k-mers of s1: AT\n"
+        "Unique k-mers of s2: AC\n"
+        "Unique k-mers of s3: AA\n"
+    )
+
+    for line in expected_output.strip().split("\n"):
+        assert line in result.output
 
 
-def test_demo_log(tmp_dir, runner):
-    args = f"-i {DATADIR / 'demo.fasta'} --names human,chimp -o {tmp_dir}".split()
-    r = runner.invoke(demo_log, args, catch_exceptions=False)
-    assert r.exit_code == 0, r.output
+def test_unique_kmers():
+    seqs = SequenceCollection(
+        {"s1": "ATAATCC", "s2": "ATGATCC", "s3": "ATACTCC"}, moltype="dna"
+    )
+    k = 3
+    result = unique_kmers(seqs, k)
+
+    for seq_name, kmers in result.items():
+        for kmer in kmers:
+            assert len(kmer) == k

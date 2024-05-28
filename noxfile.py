@@ -18,7 +18,7 @@ def test(session):
     )
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.8", "3.10"])
 def testcov(session):
     session.install(*dependencies)
     session.install(".[test]")

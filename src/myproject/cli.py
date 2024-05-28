@@ -2,16 +2,17 @@ from pathlib import Path
 
 import click
 
+# added
+from cogent3.core.alignment import SequenceCollection
 from scitrack import CachingLogger
 
 
-__author__ = "YOUR NAME"
-__copyright__ = "Copyright 2016-2021, YOUR NAME"
-__credits__ = ["YOUR NAME"]
+__author__ = "Tsz Ching Li"
+__copyright__ = ["Tsz Ching Li"]
 __license__ = "BSD"
-__version__ = "2020.6.5"  # A DATE BASED VERSION
+__version__ = "2024.5.21"  # A DATE BASED VERSION
 __maintainer__ = "YOUR NAME"
-__email__ = "YOUR@email"
+__email__ = "u7630977@anu.edu.au"
 __status__ = "alpha"
 
 
@@ -21,88 +22,63 @@ LOGGER = CachingLogger()
 @click.group()
 @click.version_option(__version__)  # add version option
 def main():
-    """docstring explains what your cl app does"""
+    """This is a bioinformatic CLI tool to find unique kmers among sequences."""
     pass
 
 
-# note that I often define reusable options in a central place
-_verbose = click.option(
-    "-v",
-    "--verbose",
-    count=True,
-    help="is an integer indicating number of cl occurrences",
-)
+def unique_kmers(seqs: SequenceCollection, k: int = 2):
+    # Returns a dictionary {seqname: set(str, ...)} of unique k-mers for each sequence.
+    result = {}
+    kmers = dict()
+    seqs_dict = seqs.to_dict()
+    for name, seq in seqs_dict.items():
+        kmer_set = set()
+        for i in range(len(seq) - k + 1):
+            kmer_set.add(seq[i : i + k])
+        kmers[name] = kmer_set
 
-# you can define custom parsers / validators
-def _parse_csv_arg(*args) -> list:
-    return args[-1].split(",")
+    for name, kmer in kmers.items():
+        other_kmers = set()
+        for n in kmers:
+            if n != name:
+                other_kmers.update(kmers[n])
+        result[name] = kmer - other_kmers
+
+    return result
 
 
-_names = click.option(
-    "--names",
-    callback=_parse_csv_arg,
-    help="converts comma separated values",
-)
+# custom parsers / validators
+def parse_sequences(ctx, param, value):
+    seqs = eval(value)
+    return SequenceCollection(seqs, moltype="dna")
 
-_outpath = click.option(
-    "-o", "--outpath", type=Path, help="the input string will be cast to Path instance"
-)
 
 # the no_args_is_help=True means help is displayed if a
 # user doesn't provide any arguments to a subcommand.
 # Should be a click default I think!
-@main.command(no_args_is_help=True)
+@main.command(
+    name="unique_kmers_for_cli", no_args_is_help=True
+)  # Ensure command is registered correctly
 @click.option(
-    "-i",
-    "--infile",
+    "-s",
+    "--seqs",
     required=True,
-    type=click.Path(exists=True),
-    help="fails if provided value is non-existent path",
-)
-@_outpath
-@click.option(
-    "--achoice",
-    type=click.Choice(["choice1", "choice2"]),
-    default="choice1",
-    help="make a choice",
-)
-@_names
-@click.option(
-    "-O",
-    "--overwrite",
-    is_flag=True,
-    help="overwrite results",
+    callback=parse_sequences,
+    help='Input sequences in the format {"s1": "ATAATCC", "s2": "ATGATCC", "s3": "ATACTCC"}',
 )
 @click.option(
-    "--ensembl_account",
-    envvar="ENSEMBL_ACCOUNT",
-    help="shell variable with MySQL account "
-    "details, e.g. export "
-    "ENSEMBL_ACCOUNT='myhost.com jill jills_pass'",
+    "-k",
+    "--kmer_size",
+    required=True,
+    type=int,
+    help="Size of the k-mers",
 )
-@_verbose
-def demo_log(infile, outpath, achoice, names, overwrite, verbose, ensembl_account):
-    """what demo_log subcommand does"""
-    # capture the local variables, at this point just provided arguments
-    LOGGER.log_args()
-    LOGGER.log_versions("numpy")
-    LOGGER.input_file(infile)
+def unique_kmers_for_cli(seqs, kmer_size):
+    """CLI command to find unique k-mers."""
+    unique_kmers_result = unique_kmers(seqs, kmer_size)
 
-    LOGGER.log_file_path = outpath / "some_path.log"
-
-
-def _parse_csv_arg(*args):
-    return args[-1].split(",")
-
-
-@main.command(no_args_is_help=True)
-@click.argument("message", required=True, type=str)
-@click.option("-t", "--test", is_flag=True, help="test run")
-@_verbose
-def demo_echo(message, test, verbose):
-    """what demo_echo subcommand does"""
-    for _ in range(verbose):
-        click.secho(message, fg="blue")
+    for seq_name, kmers in unique_kmers_result.items():
+        click.echo(f"Unique k-mers of {seq_name}: {', '.join(kmers)}")
 
 
 if __name__ == "__main__":
